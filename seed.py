@@ -24,16 +24,17 @@ def popular_tabelas_fixas():
             )
             VALUES (?, ?, ?, ?, ?, ?)
         """, [
-            (1, 'Salário ou outros rendimentos derivados do trabalho', True, 1, None, None),
+            (1, 'Salário (CLT)', True, 1, None, None),
             (2, 'Aposentadoria', True, 1, None, None),
             (3, 'Aluguéis', True, 1, None, None),
-            (4, 'Venda de imóveis', False, None, 'ITBI', 3.2),
-            (5, 'Venda de bens móveis', False, None, '', 5.0),
-            (6, 'Recebimento de doação', False, None, 'Doação', 4.0),
-            (7, 'Recebimento de herança', False, None, 'Herança', 0.0),
-            (8, 'Ganho de capital em operações de compra e venda', True, 1, None, None),
-            (9, 'Participação majoritária em Offshore', True, 1, None, None),
-            (10, 'Rendimento no exterior', True, 1, None, None)
+            (4, 'Rendimentos não tributáveis', False, 1, None, None),
+            (5, 'Venda de imóveis', False, None, 'ITBI', 3.2),
+            (6, 'Venda de bens móveis', False, None, '', 5.0),
+            (7, 'Recebimento de doação', False, None, 'Doação', 4.0),
+            (8, 'Recebimento de herança', False, None, 'Herança', 0.0),
+            (9, 'Ganho de capital em operações de compra e venda', True, 2, None, None),
+            (10, 'Participação majoritária em Offshore', True, 1, None, None),
+            (11, 'Rendimento no exterior', True, 1, None, None)
         ])
 
     conn.commit()

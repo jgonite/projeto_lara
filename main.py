@@ -1,6 +1,11 @@
+
 from modelos import criar_tabelas
 from seed import popular_tabelas_fixas
 from db import get_connection
+from utils import mes_nome
+from datetime import datetime
+import sqlite3
+from gerar_pdf import gerar_pdf_rendimentos
 
 
 def inicializar_banco():
@@ -9,14 +14,14 @@ def inicializar_banco():
 
 
 def exibir_menu_principal():
-    print("\n🐊 Bem-vindo ao COCODRILO - seu declarador de imposto de renda anual!")
+    print("\n🐊 Bem-vindo ao COCODRILO 2025 - seu declarador de imposto de renda para 2025!")
     print("Adicione usuários, seus dados de renda, e receba um extrato PDF com todas as informações")
-    print("para te auxiliar na declaração, incluindo seu cálculo personalizado de IR.\n")
+    print("para te auxiliar na declaração, incluindo seu cálculo personalizado de IR de 2025.\n")
 
     while True:
         print("🔸 Menu Principal:")
-        print("1 - Cadastrar/Alterar um usuário")
-        print("2 - Alterar dados de renda de um usuário")
+        print("1 - Cadastrar/Editar um usuário")
+        print("2 - Cadastrar/Editar dados de renda de um usuário")
         print("3 - Gerar PDF do imposto de renda para um usuário")
         print("0 - Sair")
 
@@ -177,20 +182,221 @@ def submenu_renda():
     cursor = conn.cursor()
     cursor.execute("SELECT nome_completo FROM usuario WHERE cpf = ?", (cpf,))
     user = cursor.fetchone()
+
+    if not user:
+        print("❌ Usuário não encontrado.")
+        conn.close()
+        input("\nPressione Enter para voltar ao menu principal...\n")
+        return
+
+    print(f"\n🔍 Usuário selecionado: {user[0]}")
     conn.close()
 
-    if user:
-        print(f"\n🔍 Usuário selecionado: {user[0]}")
-    else:
-        print("❌ Usuário não encontrado.")
+    while True:
+        print("\n📊 Opções de Renda:")
+        print("1 - Mostrar tabela de rendimentos cadastrados")
+        print("2 - Cadastrar receita mensal recorrente")
+        print("3 - Cadastrar receitas eventuais no ano")
+        print("0 - Voltar ao menu principal")
 
-    input("\nPressione Enter para voltar ao menu principal...\n")
+        escolha = input("Escolha uma opção: ").strip()
 
+        if escolha == '1':
+            mostrar_rendimentos(cpf)
+        elif escolha == '2':
+            cadastrar_receita_recorrente(cpf)
+        elif escolha == '3':
+            cadastrar_receita_eventual(cpf)
+        elif escolha == '0':
+            break
+        else:
+            print("Opção inválida. Tente novamente.")
+
+def mostrar_rendimentos(cpf):
+    print(f"\n📊 Rendimentos cadastrados para CPF {cpf}")
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    ano_atual = datetime.now().year
+    meses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
+             "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
+
+    print("\nMês  | Rendimentos")
+    print("-" * 40)
+
+    for i, nome_mes in enumerate(meses, start=1):
+        mes_formatado = f"{i:02d}/{ano_atual}"
+
+        cursor.execute("""
+            SELECT te.descricao_tipo, em.valor
+            FROM entrada_mensal em
+            JOIN tipo_entrada te ON em.id_tipo_entrada = te.id_tipo
+            WHERE em.cpf_usuario = ? AND em.data_entrada = ?
+        """, (cpf, mes_formatado))
+
+        rendimentos = cursor.fetchall()
+
+        if rendimentos:
+            descricoes = [f"{desc}: {valor:.2f}" for desc, valor in rendimentos]
+            linha = ', '.join(descricoes)
+        else:
+            linha = "-"
+
+        print(f"{nome_mes:<4} | {linha}")
+
+    conn.close()
+    input("\nPressione Enter para voltar ao menu anterior...")
+
+def cadastrar_receita_recorrente(cpf):
+    print(f"\n➕ Cadastro de receita mensal recorrente para CPF {cpf}:")
+
+    opcoes = {
+        '1': ('Salário CLT', 1),
+        '2': ('Aposentadoria', 2),
+        '3': ('Aluguel', 3),
+        '4': ('Bolsa de estudos', 4),
+        '0': ('Voltar', None)
+    }
+
+    for chave, (desc, _) in opcoes.items():
+        print(f"{chave}) {desc}")
+
+    tipo = input("Escolha o tipo de receita: ").strip()
+    if tipo not in opcoes or tipo == '0':
+        print("Operação cancelada.")
+        input("\nPressione Enter para voltar ao menu anterior...")
+        return
+
+    descricao_tipo, id_tipo = opcoes[tipo]
+
+    try:
+        primeiro_mes = int(input("\nDigite o número do primeiro mês de recebimento (1 - Jan, ..., 12 - Dez): ").strip())
+        if primeiro_mes < 1 or primeiro_mes > 12:
+            raise ValueError("Mês fora do intervalo")
+
+        meses_validos = list(range(primeiro_mes, 13))
+        gabarito = ", ".join([f"{m} - {mes_nome(m)}" for m in meses_validos])
+        print(f"\nEscolha o último mês de recebimento entre: {gabarito}")
+        ultimo_mes = int(input("Digite o número do último mês de recebimento: ").strip())
+        if ultimo_mes not in meses_validos:
+            raise ValueError("Último mês inválido")
+
+        valor = float(input("\nDigite o valor bruto recebido: ").replace(',', '.'))
+        if valor <= 0:
+            raise ValueError("Valor inválido")
+
+    except ValueError as ve:
+        print(f"❌ Erro: {ve}")
+        input("\nPressione Enter para voltar ao menu anterior...")
+        return
+
+    ano_atual = datetime.now().year
+    registros_inseridos = 0
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    for mes in range(primeiro_mes, ultimo_mes + 1):
+        data_entrada = f"{mes:02d}/{ano_atual}"
+        cursor.execute("""
+            INSERT INTO entrada_mensal (cpf_usuario, data_entrada, id_tipo_entrada, valor)
+            VALUES (?, ?, ?, ?)
+        """, (cpf, data_entrada, id_tipo, valor))
+        registros_inseridos += 1
+
+    conn.commit()
+    conn.close()
+
+    print(f"\n✅ {registros_inseridos} registros de '{descricao_tipo}' inseridos com sucesso para CPF {cpf}.")
+    input("\nPressione Enter para voltar ao menu anterior...")
+
+
+def cadastrar_receita_eventual(cpf):
+    print(f"\n➕ Cadastro de receita eventual para CPF {cpf}:")
+
+    opcoes = {
+        '1': ('Salário CLT', 1),
+        '2': ('Aposentadoria', 2),
+        '3': ('Aluguel', 3),
+        '4': ('Bolsa de estudos', 4),
+        '5': ('Venda de imóvel', 5),
+        '6': ('Venda de bens móveis', 6),
+        '7': ('Recebimento de doação', 7),
+        '8': ('Recebimento de herança', 8),
+        '9': ('Participação majoritária em offshore', 10),
+        '0': ('Voltar', None)
+    }
+
+    for chave, (desc, _) in opcoes.items():
+        print(f"{chave}) {desc}")
+
+    tipo = input("Escolha o tipo de receita: ").strip()
+    if tipo not in opcoes or tipo == '0':
+        print("Operação cancelada.")
+        input("\nPressione Enter para voltar ao menu anterior...")
+        return
+
+    descricao_tipo, id_tipo = opcoes[tipo]
+
+    try:
+        if tipo == '9':
+            valor = float(input("\nDigite o valor da receita **anual** derivada da participação em offshore: ").replace(',', '.'))
+            if valor <= 0:
+                raise ValueError("Valor inválido")
+            mes = 12  # Arbitrário: usar Dezembro como referência da receita anual
+        else:
+            mes = int(input("\nDigite o mês de recebimento (1 - Jan, ..., 12 - Dez): ").strip())
+            if mes < 1 or mes > 12:
+                raise ValueError("Mês fora do intervalo")
+            valor = float(input("\nDigite o valor da receita eventual: ").replace(',', '.'))
+            if valor <= 0:
+                raise ValueError("Valor inválido")
+    except ValueError as ve:
+        print(f"❌ Erro: {ve}")
+        input("\nPressione Enter para voltar ao menu anterior...")
+        return
+
+    ano_atual = datetime.now().year
+    data_entrada = f"{mes:02d}/{ano_atual}"
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        INSERT INTO entrada_mensal (cpf_usuario, data_entrada, id_tipo_entrada, valor)
+        VALUES (?, ?, ?, ?)
+    """, (cpf, data_entrada, id_tipo, valor))
+
+    conn.commit()
+    conn.close()
+
+    print(f"\n✅ Receita eventual de '{descricao_tipo}' registrada com sucesso para CPF {cpf}.")
+    input("\nPressione Enter para voltar ao menu anterior...")
 
 
 def submenu_pdf():
-    print("\n📄 Submenu: Gerar PDF do Imposto de Renda")
-    input("Pressione Enter para voltar ao menu principal...\n")
+    usuarios = listar_usuarios(retornar_lista=True)
+    if not usuarios:
+        input("\nPressione Enter para voltar ao menu...")
+        return
+
+    cpf = input("\nDigite o CPF do usuário para gerar o PDF: ").strip()
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT nome_completo FROM usuario WHERE cpf = ?", (cpf,))
+    user = cursor.fetchone()
+    conn.close()
+
+    if not user:
+        print("❌ Usuário não encontrado.")
+    else:
+        gerar_pdf_rendimentos(cpf)
+        print(f"\n✅ PDF gerado com sucesso: relatorio_rendimentos_{cpf}.pdf")
+
+    input("\nPressione Enter para voltar ao menu...")
+
 
 
 if __name__ == '__main__':
