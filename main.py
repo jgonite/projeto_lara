@@ -45,7 +45,8 @@ def submenu_usuario():
         print("\n🧑 Submenu: Cadastrar/Alterar Usuário")
         print("1 - Adicionar novo usuário")
         print("2 - Alterar idade ou profissão de um usuário")
-        print("3 - Remover um usuário")
+        print("3 - Cadastrar Dependentes para um usuário")
+        print("4 - Remover um usuário")
         print("0 - Voltar ao menu principal")
 
         escolha = input("Escolha uma opção: ").strip()
@@ -55,6 +56,8 @@ def submenu_usuario():
         elif escolha == '2':
             alterar_usuario()
         elif escolha == '3':
+            cadastrar_dependente()
+        elif escolha == '4':
             remover_usuario()
         elif escolha == '0':
             break
@@ -166,6 +169,40 @@ def remover_usuario():
     conn.close()
     input("\nPressione Enter para voltar ao menu...")
 
+def cadastrar_dependente():
+    usuarios = listar_usuarios(retornar_lista=True)
+    if not usuarios:
+        input("\nPressione Enter para voltar ao menu...")
+        return
+
+    cpf = input("\nDigite o CPF do usuário para quem deseja cadastrar um dependente: ").strip()
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT nome_completo FROM usuario WHERE cpf = ?", (cpf,))
+    usuario = cursor.fetchone()
+
+    if not usuario:
+        print("❌ Usuário não encontrado.")
+        conn.close()
+        input("\nPressione Enter para voltar ao menu...")
+        return
+
+    nome_dependente = input("Digite o nome completo do dependente: ").strip()
+
+    try:
+        cursor.execute("""
+            INSERT INTO dependente (cpf_usuario, nome_completo)
+            VALUES (?, ?)
+        """, (cpf, nome_dependente))
+        conn.commit()
+        print("\n✅ Dependente cadastrado com sucesso!")
+    except Exception as e:
+        print(f"❌ Erro ao cadastrar dependente: {e}")
+    finally:
+        conn.close()
+
+    input("\nPressione Enter para voltar ao menu...")
 
 def submenu_renda():
     print("\n💰 Submenu: Alterar Dados de Renda")
@@ -300,9 +337,9 @@ def cadastrar_receita_recorrente(cpf):
     for mes in range(primeiro_mes, ultimo_mes + 1):
         data_entrada = f"{mes:02d}/{ano_atual}"
         cursor.execute("""
-            INSERT INTO entrada_mensal (cpf_usuario, data_entrada, id_tipo_entrada, valor)
-            VALUES (?, ?, ?, ?)
-        """, (cpf, data_entrada, id_tipo, valor))
+            INSERT INTO entrada_mensal (cpf_usuario, data_entrada, id_tipo_entrada, valor, valor_desconto, descricao_desconto)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (cpf, data_entrada, id_tipo, valor, 0, ''))
         registros_inseridos += 1
 
     conn.commit()
@@ -339,12 +376,44 @@ def cadastrar_receita_eventual(cpf):
 
     descricao_tipo, id_tipo = opcoes[tipo]
 
+    valor_desconto = 0
+    ds_desconto = ''
+
+    gerar_ganho_de_capital = False
+    ds_desconto_ganho_capital =''
+    valor_desconto_ganho_capital = 0
+    valor_ganho_capital = 0
     try:
         if tipo == '9':
             valor = float(input("\nDigite o valor da receita **anual** derivada da participação em offshore: ").replace(',', '.'))
             if valor <= 0:
                 raise ValueError("Valor inválido")
             mes = 12  # Arbitrário: usar Dezembro como referência da receita anual
+        elif tipo == '6':
+            mes = int(input("\nDigite o mês de venda do imóvel (1 - Jan, ..., 12 - Dez): ").strip())
+            if mes < 1 or mes > 12:
+                raise ValueError("Mês fora do intervalo")
+            valor = float(input("\nDigite o valor de venda do imóvel: ").replace(',', '.'))
+            if valor <= 0:
+                raise ValueError("Valor inválido")
+            valor_compra_imovel = float(input("\nDigite qual foi o valor original de compra deste mesmo imóvel: ").replace(',', '.'))
+            if valor_compra_imovel <= 0:
+                raise ValueError("Valor inválido")
+
+            if valor > valor_compra_imovel:
+                gerar_ganho_de_capital = True
+
+            valor_ganho_capital = valor - valor_compra_imovel
+
+            comprou_outro_imovel = input("\nVocê comprou outro imóvel em um período de 6 meses após esta venda? (1 - Sim, 2 - Não): ")
+            if comprou_outro_imovel != 1 and comprou_outro_imovel != 2:
+                raise ValueError("Valor inválido")
+            elif comprou_outro_imovel == 1:
+                valor_desconto_ganho_capital = float(input("\nDigite o valor de compra deste novo imóvel: ").replace(',', '.'))
+                ds_desconto_ganho_capital = 'Desconto devido a compra de imóvel em período de 6 meses após o ganho de capital com imóveis '
+                if valor_desconto_ganho_capital <= 0:
+                    raise ValueError("Valor inválido")
+
         else:
             mes = int(input("\nDigite o mês de recebimento (1 - Jan, ..., 12 - Dez): ").strip())
             if mes < 1 or mes > 12:
@@ -364,9 +433,15 @@ def cadastrar_receita_eventual(cpf):
     cursor = conn.cursor()
 
     cursor.execute("""
-        INSERT INTO entrada_mensal (cpf_usuario, data_entrada, id_tipo_entrada, valor)
-        VALUES (?, ?, ?, ?)
-    """, (cpf, data_entrada, id_tipo, valor))
+        INSERT INTO entrada_mensal (cpf_usuario, data_entrada, id_tipo_entrada, valor, valor_desconto, descricao_desconto)
+        VALUES (?, ?, ?, ?, ?, ? )
+    """, (cpf, data_entrada, id_tipo, valor, valor_desconto, ds_desconto))
+
+    if gerar_ganho_de_capital:
+        cursor.execute("""
+            INSERT INTO entrada_mensal (cpf_usuario, data_entrada, id_tipo_entrada, valor, valor_desconto, descricao_desconto)
+            VALUES (?, ?, ?, ?, ?, ? )
+        """, (cpf, data_entrada, 9, valor_ganho_capital, valor_desconto_ganho_capital, ds_desconto_ganho_capital))
 
     conn.commit()
     conn.close()

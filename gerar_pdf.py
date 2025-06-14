@@ -25,8 +25,12 @@ def gerar_pdf_rendimentos(cpf):
 
     nome, idade, profissao = usuario
 
-    cursor.execute("SELECT COUNT(*) FROM dependente WHERE cpf_usuario = ?", (cpf,))
-    numero_dependentes = cursor.fetchone()[0]
+    cursor.execute("""
+                   SELECT nome_completo
+                   FROM dependente
+                   WHERE cpf_usuario = ?
+                   """, (cpf,))
+    dependentes = [row[0] for row in cursor.fetchall()]
 
     cursor.execute("""
         SELECT em.data_entrada, te.descricao_tipo, em.valor
@@ -72,13 +76,18 @@ def gerar_pdf_rendimentos(cpf):
     elementos = []
 
     # Capa
-    elementos.append(Paragraph("Relatório de Rendimentos<br/><b>IRPF 2025</b>", styles['Title']))
+    elementos.append(Paragraph("Informações Referentes ao <br/><b>IRPF 2025</b>", styles['Title']))
     elementos.append(Spacer(1, 1 * cm))
     elementos.append(Paragraph(f"<b>Nome:</b> {nome}", styles['Label']))
     elementos.append(Paragraph(f"<b>CPF:</b> {cpf}", styles['Label']))
     elementos.append(Paragraph(f"<b>Idade:</b> {idade}", styles['Label']))
     elementos.append(Paragraph(f"<b>Profissão:</b> {profissao}", styles['Label']))
-    elementos.append(Paragraph(f"<b>Número de dependentes:</b> {numero_dependentes}", styles['Label']))
+    if dependentes:
+        elementos.append(Paragraph(f"<b>Dependentes:</b>", styles['Label']))
+        lista_dependentes = "<br/>".join([f"• {nome}" for nome in dependentes])
+        elementos.append(Paragraph(lista_dependentes, styles['Small']))
+    else:
+        elementos.append(Paragraph(f"<b>Dependentes:</b> Nenhum", styles['Label']))
     elementos.append(Spacer(1, 2 * cm))
     elementos.append(Paragraph("Documento gerado automaticamente pelo sistema COCODRILO 2025.",
                                 styles['Small']))
