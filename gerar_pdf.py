@@ -4,7 +4,6 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from reportlab.lib.units import cm
-from reportlab.pdfgen import canvas
 import sqlite3
 from datetime import datetime
 from calculos_ir import calcular_dados_ir_por_tipo
@@ -12,6 +11,7 @@ import matplotlib.pyplot as plt
 from io import BytesIO
 from reportlab.platypus import Image, Spacer
 from reportlab.lib.units import inch
+from outros_impostos import calcular_outros_impostos
 
 
 def adicionar_grafico_pizza(story, resultados):
@@ -62,6 +62,45 @@ def adicionar_grafico_pizza(story, resultados):
     story.append(Spacer(1, 12))
     story.append(Paragraph(f"<b>Total de Imposto a Recolher:</b> R$ {total_recolher:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."), style_normal))
 
+
+def adicionar_outros_impostos_pdf(story, outros_resultados):
+    styles = getSampleStyleSheet()
+    style_title = styles['Heading2']
+    style_normal = styles['Normal']
+
+    # Quebra de página antes da nova seção
+    story.append(PageBreak())
+    story.append(Paragraph("Outros impostos a recolher", style_title))
+    story.append(Spacer(1, 12))
+
+    for resultado in outros_resultados:
+        story.append(Paragraph(f"<b>{resultado['descricao_tipo']}</b>", style_normal))
+        story.append(Spacer(1, 6))
+
+        data = [
+            ['Valor total declarado', f"R$ {resultado['valor_total_declarado']:,.2f}"]
+        ]
+
+        if resultado['imposto_a_recolher'] is None:
+            data.append(['Imposto a recolher', "Nenhum. Rendimento isento de impostos."])
+        else:
+            data.extend([
+                ['Imposto a recolher', resultado['imposto_a_recolher']],
+                ['Alíquota', f"{resultado['aliquota']:.2f}%"],
+                ['Valor total a recolher', f"R$ {resultado['valor_a_recolher']:,.2f}"]
+            ])
+
+        tabela = Table(data, hAlign='LEFT', colWidths=[220, 250])
+        tabela.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+            ('BOX', (0, 0), (-1, -1), 1, colors.black),
+            ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6)
+        ]))
+        story.append(tabela)
+        story.append(Spacer(1, 16))
 
 def gerar_pdf_rendimentos(cpf):
     conn = sqlite3.connect("imposto_renda.db")
@@ -130,6 +169,17 @@ def gerar_pdf_rendimentos(cpf):
     else:
         elementos.append(Paragraph(f"<b>Dependentes:</b> Nenhum", styles['Label']))
     elementos.append(Spacer(1, 2 * cm))
+
+
+    resultados = calcular_dados_ir_por_tipo(conn, cpf)
+    valores = []
+    for item in resultados:
+        if item['valor_total_recolher'] > 0:
+            valores.append(item['valor_total_recolher'])
+    vl_total_recolher = sum(valores)
+
+    elementos.append(Paragraph(f"<b>VALOR TOTAL A RECOLHER:</b> R$ {vl_total_recolher:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."), styles['Label']))
+    elementos.append(Spacer(1, 2 * cm))
     elementos.append(Paragraph("Documento gerado automaticamente pelo sistema COCODRILO 2025.",
                                 styles['Small']))
     elementos.append(Paragraph("Este sistema foi construído para fins educativos e seus cálculos, embora reflitam parte das regras de declarações de Imposto de Renda reais, não devem ser usados como referência para declarações de Imposto de Renda.",
@@ -140,7 +190,7 @@ def gerar_pdf_rendimentos(cpf):
     elementos.append(Paragraph("Cálculos Referentes ao IR", styles['Title']))
     elementos.append(Spacer(1, 0.5 * cm))
 
-    resultados = calcular_dados_ir_por_tipo(conn, cpf)
+
 
     for res in resultados:
         elementos.append(Paragraph(res['descricao_tipo'], styles['Subtitle']))
@@ -189,6 +239,8 @@ def gerar_pdf_rendimentos(cpf):
         elementos.append(Spacer(1, 1 * cm))
 
     adicionar_grafico_pizza(elementos, resultados)
+    outros_impostos_calculados = calcular_outros_impostos(conn, cpf)
+    adicionar_outros_impostos_pdf(elementos, outros_impostos_calculados)
 
     conn.close()
 
