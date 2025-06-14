@@ -12,8 +12,8 @@ def popular_tabelas_fixas():
             VALUES (?, ?)
         """, [
             (1, 'tabela progressiva IR'),
-            (2, 'tabela progressiva IR aposentados')
-            (3, 'tabela progressiva ganho capital'),
+            (2, 'tabela progressiva IR aposentados'),
+            (3, 'tabela progressiva ganho capital')
         ])
 
     cursor.execute("SELECT COUNT(*) FROM tipo_entrada")
@@ -27,7 +27,7 @@ def popular_tabelas_fixas():
         """, [
             (1, 'Salário (CLT)', True, 1, True, None, None),
             (2, 'Aposentadoria', True, 2, True, None, None),
-            (3, 'Aluguéis', True, 1, True, None, None),
+            (3, 'Aluguéis', True, 1, False, None, None),
             (4, 'Rendimentos não tributáveis', False, 1, True, None, None),
             (5, 'Venda de imóveis', False, None, False, 'ITBI', 3.2),
             (6, 'Venda de bens móveis', False, None, False, '', 5.0),
@@ -41,29 +41,29 @@ def popular_tabelas_fixas():
     if cursor.fetchone()[0] == 0:
         cursor.executemany("""
             INSERT INTO tabela_progressiva (
-                id_tabela_progressiva, valor_superior_faixa, aliquota, deducao
+                id_tabela_progressiva, valor_superior_faixa, aliquota, deducao, idade_deducao_adicional, deducao_adicional
             )
-            VALUES (?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?)
         """, [
             # Tabela 1 – IRPF padrão
-            (1, 2259.20,   0.0,     0.0),
-            (1, 2826.65,   7.5,   169.44),
-            (1, 3751.05,  15.0,   381.44),
-            (1, 4664.68,  22.5,   662.77),
-            (1, 999999999,  27.5,   896.00),
+            (1, 2259.20,   0.0,     0.0, 0, 0.0),
+            (1, 2826.65,   7.5,   169.44, 0, 0.0),
+            (1, 3751.05,  15.0,   381.44, 0, 0.0),
+            (1, 4664.68,  22.5,   662.77, 0, 0.0),
+            (1, 999999999,  27.5,   896.00, 0, 0.0),
 
             # Tabela 2 – IRPF aposentados
-            (2, 2259.20,   0.0,     0.0),
-            (2, 2826.65,   7.5,   169.44),
-            (2, 3751.05,  15.0,   381.44),
-            (2, 4664.68,  22.5,   662.77),
-            (2, 999999999,  27.5,   896.00),
+            (2, 2259.20,   0.0,     0.0, 65, 1903.98),
+            (2, 2826.65,   7.5,   169.44, 65, 1903.98),
+            (2, 3751.05,  15.0,   381.44, 65, 1903.98),
+            (2, 4664.68,  22.5,   662.77, 65, 1903.98),
+            (2, 999999999,  27.5,   896.00, 65, 1903.98),
 
             # Tabela 3 – Ganho de capital
-            (3, 5000000.00,   15.0,       0.0),
-            (3, 10000000.00,   17.5,    0.0),
-            (3, 30000000.00,  20.0,    0.0),
-            (3, 999000000.00,  22.5,    0.0)
+            (3, 5000000.00,   15.0,       0.0, 0, 0.0),
+            (3, 10000000.00,   17.5,    0.0, 0, 0.0),
+            (3, 30000000.00,  20.0,    0.0, 0, 0.0),
+            (3, 999000000.00,  22.5,    0.0, 0, 0.0)
         ])
         print("✅ Faixas da tabela progressiva inseridas com sucesso.")
 

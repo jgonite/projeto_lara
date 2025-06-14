@@ -52,6 +52,8 @@ def criar_tabelas():
         valor_superior_faixa REAL NOT NULL,
         aliquota REAL NOT NULL,
         deducao REAL NOT NULL,
+        idade_deducao_adicional INT,
+        deducao_adicional REAL,
         PRIMARY KEY (id_tabela_progressiva, valor_superior_faixa)
     );
         

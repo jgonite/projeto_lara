@@ -389,7 +389,7 @@ def cadastrar_receita_eventual(cpf):
             if valor <= 0:
                 raise ValueError("Valor inválido")
             mes = 12  # Arbitrário: usar Dezembro como referência da receita anual
-        elif tipo == '6':
+        elif tipo == '5':
             mes = int(input("\nDigite o mês de venda do imóvel (1 - Jan, ..., 12 - Dez): ").strip())
             if mes < 1 or mes > 12:
                 raise ValueError("Mês fora do intervalo")
@@ -405,7 +405,7 @@ def cadastrar_receita_eventual(cpf):
 
             valor_ganho_capital = valor - valor_compra_imovel
 
-            comprou_outro_imovel = input("\nVocê comprou outro imóvel em um período de 6 meses após esta venda? (1 - Sim, 2 - Não): ")
+            comprou_outro_imovel = int(input("\nVocê comprou outro imóvel em um período de 6 meses após esta venda? (1 - Sim, 2 - Não): "))
             if comprou_outro_imovel != 1 and comprou_outro_imovel != 2:
                 raise ValueError("Valor inválido")
             elif comprou_outro_imovel == 1:
