@@ -63,10 +63,15 @@ def adicionar_grafico_pizza(story, resultados):
     story.append(Paragraph(f"<b>Total de Imposto a Recolher:</b> R$ {total_recolher:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."), style_normal))
 
 
+from reportlab.platypus import Paragraph, Spacer, PageBreak, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
+
 def adicionar_outros_impostos_pdf(story, outros_resultados):
     styles = getSampleStyleSheet()
     style_title = styles['Heading2']
     style_normal = styles['Normal']
+    style_disclaimer = styles['Italic']
 
     # Quebra de página antes da nova seção
     story.append(PageBreak())
@@ -100,7 +105,15 @@ def adicionar_outros_impostos_pdf(story, outros_resultados):
             ('BOTTOMPADDING', (0, 0), (-1, -1), 6)
         ]))
         story.append(tabela)
+
+        # Adiciona disclaimer se for ITCMD ou ITBI
+        if resultado['imposto_a_recolher'] in ['ITCMD', 'ITBI']:
+            disclaimer_text = "Valor de imposto referente a alíquota aplicada no estado de São Paulo."
+            story.append(Spacer(1, 6))
+            story.append(Paragraph(disclaimer_text, style_disclaimer))
+
         story.append(Spacer(1, 16))
+
 
 def gerar_pdf_rendimentos(cpf):
     conn = sqlite3.connect("imposto_renda.db")

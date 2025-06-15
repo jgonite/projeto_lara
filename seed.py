@@ -29,10 +29,10 @@ def popular_tabelas_fixas():
             (2, 'Aposentadoria', True, 2, True, None, None),
             (3, 'Aluguéis', True, 1, False, None, None),
             (4, 'Rendimentos não tributáveis', False, 1, True, None, None),
-            (5, 'Venda de imóveis', False, None, False, 'ITBI', 3.2),
+            (5, 'Venda de imóveis', False, None, False, 'ITBI', 3.0),
             (6, 'Venda de bens móveis', False, None, False, '', 5.0),
-            (7, 'Recebimento de doação', False, None, False, 'Doação', 4.0),
-            (8, 'Recebimento de herança', False, None, False, 'Herança', 0.0),
+            (7, 'Recebimento de doação', False, None, False, 'ITCMD', 4.0),
+            (8, 'Recebimento de herança', False, None, False, 'ITCMD', 4.0),
             (9, 'Ganho de capital em operações de compra e venda', True, 3, False, None, None),
             (10, 'Participação majoritária em Offshore', True, 1, False, None, None),
             (11, 'Rendimento no exterior', True, 1, False, None, None)
